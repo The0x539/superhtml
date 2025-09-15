@@ -167,8 +167,8 @@ pub const Rule = union(enum) {
             }
 
             switch (list.extra) {
-                .missing, .manual => unreachable,
-                .none => {},
+                .manual => unreachable,
+                .none, .missing => {},
                 .not_empty => if (item.len > 0) return .custom,
                 .missing_or_empty => return if (item.len > 0) .custom else .empty,
                 .custom => {
@@ -1076,7 +1076,7 @@ const empty_set: *const AttributeSet = &.{
     .map = .initComptime(.{}),
 };
 
-const Named = struct { name: []const u8, model: Attribute };
+pub const Named = struct { name: []const u8, model: Attribute };
 pub const AttributeSet = struct {
     list: []const Named,
     map: Map,

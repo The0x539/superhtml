@@ -64,6 +64,22 @@ pub fn build(b: *std.Build) !void {
     if (version == .tag) {
         setupReleaseStep(b, options, superhtml, folders, lsp);
     }
+
+    setupGeneratorStep(b, target);
+}
+
+fn setupGeneratorStep(b: *std.Build, target: std.Build.ResolvedTarget) void {
+    const gen = b.step("generator", "Build generator executable for reproing fuzz cases");
+    const supergen = b.addExecutable(.{
+        .name = "generator",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/generator.zig"),
+            .target = target,
+            .optimize = .ReleaseSafe,
+        }),
+    });
+
+    gen.dependOn(&b.addInstallArtifact(supergen, .{}).step);
 }
 
 fn setupCheckStep(
@@ -106,8 +122,7 @@ fn setupTestStep(
 
     const unit_tests = b.addTest(.{
         .root_module = superhtml,
-        // .strip = true,
-        // .filter = "if-else-loop",
+        .filters = b.args orelse &.{},
     });
 
     const run_unit_tests = b.addRunArtifact(unit_tests);

@@ -2051,3 +2051,33 @@ pub const Cursor = struct {
         };
     }
 };
+
+test "fuzz" {
+    const Reader = std.Io.Reader;
+    const generator = @import("../generator/html.zig");
+    const Context = struct {
+        arena: *std.heap.ArenaAllocator,
+        gpa: Allocator,
+        out: *Writer,
+        fn testOne(ctx: @This(), input: []const u8) anyerror!void {
+            _ = ctx.arena.reset(.retain_capacity);
+
+            var in: Reader = .fixed(input);
+            var out: Writer.Allocating = .init(ctx.gpa);
+            try generator.generate(ctx.gpa, &in, &out.writer);
+            std.debug.print("{s}\n\n", .{out.written()});
+
+            const ast: Ast = try .init(ctx.gpa, out.written(), .html, false);
+            _ = ast;
+        }
+    };
+
+    var arena: std.heap.ArenaAllocator = .init(std.heap.page_allocator);
+    var buf: [4096]u8 = undefined;
+    var out = std.fs.File.stdout().writer(&buf);
+    try std.testing.fuzz(Context{
+        .arena = &arena,
+        .gpa = arena.allocator(),
+        .out = &out.interface,
+    }, Context.testOne, .{});
+}

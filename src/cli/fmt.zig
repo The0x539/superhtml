@@ -114,10 +114,9 @@ fn formatFile(
     const arena = arena_impl.allocator();
 
     const in_bytes = try base_dir.readFileAllocOptions(
-        arena,
         sub_path,
-        super.max_size,
-        null,
+        arena,
+        .limited(super.max_size),
         .of(u8),
         0,
     );

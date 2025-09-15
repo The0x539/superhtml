@@ -494,7 +494,17 @@ pub inline fn validateAttrs(
 
     return switch (element.attributes) {
         .manual => return element.model,
-        .dynamic => |validate| validate(gpa, errors, src, nodes, parent_idx, node_idx, &vait),
+        .dynamic => |validate| {
+            var ancestor_idx = parent_idx;
+            while (ancestor_idx != 0) {
+                const a = nodes[ancestor_idx];
+                ancestor_idx = a.parent_idx;
+                std.debug.print("{t} < ", .{a.kind});
+            }
+
+            std.debug.print("\n kind = {t}", .{element.tag});
+            return validate(gpa, errors, src, nodes, parent_idx, node_idx, &vait);
+        },
         .static => blk: {
             // const max_len = comptime max: {
             //     var max: u32 = 0;
