@@ -174,12 +174,8 @@ pub const Token = union(enum) {
         span: Span,
         name: Span,
         attr_count: u32 = 0,
-        kind: enum {
-            start,
-            start_self,
-            end,
-            end_self,
-        },
+        kind: enum { start, end },
+        self_closing: bool = false,
 
         pub fn isVoid(st: @This(), src: []const u8, language: Language) bool {
             std.debug.assert(st.name.end != 0);
@@ -2884,15 +2880,11 @@ fn next2(self: *Tokenizer, src: []const u8) ?struct {
 
                         var tag = state;
                         tag.span.end = self.idx;
-                        tag.kind = switch (tag.kind) {
-                            .start => .start_self,
-                            .end => .end_self,
-                            else => unreachable,
-                        };
+                        tag.self_closing = true;
 
                         if (self.return_attrs and tag.attr_count == 0) {
                             return .{
-                                .token = if (tag.kind == .end_self) .{
+                                .token = if (tag.kind == .end) .{
                                     .parse_error = .{
                                         .tag = .end_tag_with_trailing_solidus,
                                         .span = tag.span,
@@ -2901,7 +2893,7 @@ fn next2(self: *Tokenizer, src: []const u8) ?struct {
                             };
                         }
 
-                        return if (tag.kind == .end_self) .{
+                        return if (tag.kind == .end) .{
                             .token = .{
                                 .parse_error = .{
                                     .tag = .end_tag_with_trailing_solidus,

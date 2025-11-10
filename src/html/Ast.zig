@@ -546,14 +546,12 @@ pub fn init(
                 current = &nodes.items[current_idx];
             },
             .tag => |tag| switch (tag.kind) {
-                .start,
-                .start_self,
-                => {
+                .start => {
                     const name = tag.name.slice(src);
 
                     var new: Node = .{
                         .open = tag.span,
-                        .self_closing = tag.kind == .start_self,
+                        .self_closing = tag.self_closing,
                         .kind = .___,
                         .model = .{ .categories = .all, .content = .all },
                     };
@@ -686,7 +684,7 @@ pub fn init(
                         });
                     }
                 },
-                .end, .end_self => {
+                .end => {
                     if (current.kind == .root) {
                         has_syntax_errors = true;
                         try errors.append(gpa, .{
