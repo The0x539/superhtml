@@ -559,7 +559,7 @@ pub fn init(
                     };
 
                     if (svg_lvl == 0 and math_lvl == 0 and language != .xml) {
-                        if (new.self_closing) {
+                        if (new.self_closing and !tag.isVoid(src, language)) {
                             try errors.append(gpa, .{
                                 .tag = .html_elements_cant_self_close,
                                 .main_location = tag.name,
@@ -1999,22 +1999,28 @@ test "self-closing html void tag" {
         \\  </body>
         \\</html>
     ;
-    const expected =
-        \\<stdin>:8:5: html elements can't self-close
-        \\   <br />
-        \\    ^^
+    const expected = comptime std.fmt.comptimePrint(
+        \\<!DOCTYPE html>
+        \\<html lang="en">
+        \\{0c}<head>
+        \\{0c}{0c}<meta charset="UTF-8">
+        \\{0c}{0c}<title>hi</title>
+        \\{0c}</head>
+        \\{0c}<body>
+        \\{0c}{0c}<span>Hello</span>
+        \\{0c}{0c}<br>
+        \\{0c}{0c}<span>World</span>
+        \\{0c}</body>
+        \\</html>
         \\
-    ;
+    , .{'\t'});
 
     const ast = try Ast.init(std.testing.allocator, case, .html, false);
     defer ast.deinit(std.testing.allocator);
 
-    var writer = Writer.Allocating.init(std.testing.allocator);
-    defer writer.deinit();
+    try std.testing.expectEqualSlices(Ast.Error, &.{}, ast.errors);
 
-    try ast.printErrors(case, null, &writer.writer);
-
-    try std.testing.expectEqualStrings(expected, writer.written());
+    try std.testing.expectFmt(expected, "{f}", .{ast.formatter(case)});
 }
 
 test "invalid self-closing html tag" {
