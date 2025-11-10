@@ -550,114 +550,71 @@ pub fn init(
                 .start_self,
                 => {
                     const name = tag.name.slice(src);
-                    const self_closing = tag.kind == .start_self;
-                    var new: Node = node: switch (tag.kind) {
-                        else => unreachable,
-                        .start_self => {
-                            if (svg_lvl != 0 or math_lvl != 0 or language == .xml) {
-                                break :node .{
-                                    .kind = .___,
-                                    .open = tag.span,
-                                    .model = .{
-                                        .categories = .all,
-                                        .content = .all,
-                                    },
-                                    .self_closing = true,
-                                };
-                            }
+
+                    var new: Node = .{
+                        .open = tag.span,
+                        .self_closing = tag.kind == .start_self,
+                        .kind = .___,
+                        .model = .{ .categories = .all, .content = .all },
+                    };
+
+                    if (svg_lvl == 0 and math_lvl == 0 and language != .xml) {
+                        if (new.self_closing) {
                             try errors.append(gpa, .{
                                 .tag = .html_elements_cant_self_close,
                                 .main_location = tag.name,
                                 .node_idx = current_idx + 1,
                             });
-                            continue :node .start;
-                        },
-                        .start => switch (language) {
-                            .superhtml => {
-                                const kind: Ast.Kind = if (std.ascii.eqlIgnoreCase("ctx", name))
+                        }
+
+                        switch (language) {
+                            .xml => unreachable,
+
+                            .superhtml => new.kind =
+                                if (std.ascii.eqlIgnoreCase("ctx", name))
                                     .ctx
                                 else if (std.ascii.eqlIgnoreCase("super", name))
                                     .super
                                 else if (std.ascii.eqlIgnoreCase("extend", name))
                                     .extend
                                 else
-                                    kinds.get(name) orelse .___;
+                                    kinds.get(name) orelse .___,
 
-                                break :node .{
-                                    .open = tag.span,
-                                    .kind = kind,
-                                    .model = .{
-                                        .categories = .all,
-                                        .content = .all,
-                                    },
-                                    .self_closing = self_closing,
-                                };
-                            },
-                            .html => {
-                                if (svg_lvl == 0 and math_lvl == 0) {
-                                    if (kinds.get(name)) |kind| {
-                                        const parent_idx = switch (current.direction()) {
-                                            .in => current_idx,
-                                            .after => nodes.items[current_idx].parent_idx,
-                                        };
+                            .html => if (kinds.get(name)) |kind| {
+                                new.kind = kind;
 
-                                        const e = elements.get(kind);
-                                        const model = if (syntax_only or language != .html)
-                                            undefined
-                                        else
-                                            try e.validateAttrs(
-                                                gpa,
-                                                language,
-                                                &errors,
-                                                &seen_attrs,
-                                                &seen_ids_stack.items[seen_ids_stack.items.len - 1],
-                                                nodes.items,
-                                                parent_idx,
-                                                src,
-                                                tag.span,
-                                                @intCast(nodes.items.len),
-                                            );
+                                if (!syntax_only) {
+                                    const parent_idx = switch (current.direction()) {
+                                        .in => current_idx,
+                                        .after => nodes.items[current_idx].parent_idx,
+                                    };
 
-                                        if (kind == .template) {
-                                            try seen_ids_stack.append(gpa, .empty);
-                                        }
-
-                                        break :node .{
-                                            .open = tag.span,
-                                            .kind = kind,
-                                            .model = model,
-                                            .self_closing = self_closing,
-                                        };
-                                    } else if (std.mem.indexOfScalar(u8, name, '-') == null and !syntax_only) {
-                                        try errors.append(gpa, .{
-                                            .tag = .invalid_html_tag_name,
-                                            .main_location = tag.name,
-                                            .node_idx = @intCast(nodes.items.len),
-                                        });
-                                    }
+                                    new.model = try elements.get(kind).validateAttrs(
+                                        gpa,
+                                        language,
+                                        &errors,
+                                        &seen_attrs,
+                                        &seen_ids_stack.items[seen_ids_stack.items.len - 1],
+                                        nodes.items,
+                                        parent_idx,
+                                        src,
+                                        tag.span,
+                                        @intCast(nodes.items.len),
+                                    );
                                 }
 
-                                break :node .{
-                                    .kind = .___,
-                                    .open = tag.span,
-                                    .model = .{
-                                        .categories = .all,
-                                        .content = .all,
-                                    },
-                                    .self_closing = self_closing,
-                                };
+                                if (kind == .template) {
+                                    try seen_ids_stack.append(gpa, .empty);
+                                }
+                            } else if (std.mem.indexOfScalar(u8, name, '-') == null and !syntax_only) {
+                                try errors.append(gpa, .{
+                                    .tag = .invalid_html_tag_name,
+                                    .main_location = tag.name,
+                                    .node_idx = @intCast(nodes.items.len),
+                                });
                             },
-                            .xml => break :node .{
-                                .kind = .___,
-                                .open = tag.span,
-                                .model = .{
-                                    .categories = .all,
-                                    .content = .all,
-                                },
-                                .self_closing = self_closing,
-                            },
-                        },
-                    };
+                        }
+                    }
 
                     // This comparison is done via strings instead of kinds
                     // because we will not attempt to match the kind of an
