@@ -1243,11 +1243,11 @@ pub fn render(ast: Ast, src: []const u8, w: *Writer) !void {
 
                     try w.print("<{s}", .{name});
 
-                    const vertical = std.ascii.isWhitespace(
-                        // <div arst="arst" >
-                        //                 ^
-                        src[current.open.end - 2],
-                    ) and blk: {
+                    // <div arst="arst" > <br />
+                    //                 ^     ^
+                    const offset: u32 = if (current.self_closing) 3 else 2;
+
+                    const vertical = std.ascii.isWhitespace(src[current.open.end - offset]) and blk: {
                         // Don't do vertical alignment if we don't have
                         // at least 2 attributes.
                         var temp_sti = sti;
@@ -1974,6 +1974,38 @@ test "self-closing tag complex example" {
         \\<div id="content">
         \\{0c}<svg viewBox="0 0 24 24">
         \\{0c}{0c}<path d="M14.4,6H20V16H13L12.6,14H7V21H5V4H14L14.4,6M14,14H16V12H18V10H16V8H14V10L13,8V6H11V8H9V6H7V8H9V10H7V12H9V10H11V12H13V10L14,12V14M11,10V8H13V10H11M14,10H16V12H14V10Z"/>
+        \\{0c}</svg>
+        \\</div>
+        \\
+    , .{'\t'});
+    const ast = try Ast.init(std.testing.allocator, case, .html, false);
+    defer ast.deinit(std.testing.allocator);
+
+    try std.testing.expectFmt(expected, "{f}", .{ast.formatter(case)});
+}
+
+test "self-closing tag with vertical formatting" {
+    const case =
+        \\extend template="base.html"/>
+        \\
+        \\<div id="content">
+        \\<svg viewBox="0 0 24 24">
+        \\<circle id="face" cx="200" cy="200" r="195" />
+        \\<circle id="nose" cx="200" cy="210" r="5"/>
+        \\</svg>
+        \\</div>
+    ;
+    const expected = comptime std.fmt.comptimePrint(
+        \\extend template="base.html"/>
+        \\
+        \\<div id="content">
+        \\{0c}<svg viewBox="0 0 24 24">
+        \\{0c}{0c}<circle id="face"
+        \\{0c}{0c}        cx="200"
+        \\{0c}{0c}        cy="200"
+        \\{0c}{0c}        r="195"
+        \\{0c}{0c}/>
+        \\{0c}{0c}<circle id="nose" cx="200" cy="210" r="5"/>
         \\{0c}</svg>
         \\</div>
         \\
