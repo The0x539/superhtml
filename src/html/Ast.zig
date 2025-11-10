@@ -1312,7 +1312,7 @@ pub fn render(ast: Ast, src: []const u8, w: *Writer) !void {
                         }
                     }
 
-                    if (current.self_closing and !current.kind.isVoid()) {
+                    if (current.self_closing) {
                         try w.print("/", .{});
                     }
                     try w.print(">", .{});
@@ -2040,7 +2040,7 @@ test "self-closing html void tag" {
         \\{0c}</head>
         \\{0c}<body>
         \\{0c}{0c}<span>Hello</span>
-        \\{0c}{0c}<br>
+        \\{0c}{0c}<br/>
         \\{0c}{0c}<span>World</span>
         \\{0c}</body>
         \\</html>
