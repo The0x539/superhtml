@@ -2027,6 +2027,70 @@ test "self-closing tag complex example" {
     try std.testing.expectFmt(expected, "{f}", .{ast.formatter(case)});
 }
 
+test "self-closing html void tag" {
+    const case =
+        \\<!DOCTYPE html>
+        \\<html lang="en">
+        \\  <head>
+        \\    <meta charset="UTF-8">
+        \\    <title>hi</title>
+        \\  </head>
+        \\  <body>
+        \\    <span>Hello</span>
+        \\    <br />
+        \\    <span>World</span>
+        \\  </body>
+        \\</html>
+    ;
+    const expected =
+        \\<stdin>:8:5: html elements can't self-close
+        \\   <br />
+        \\    ^^
+        \\
+    ;
+
+    const ast = try Ast.init(std.testing.allocator, case, .html, false);
+    defer ast.deinit(std.testing.allocator);
+
+    var writer = Writer.Allocating.init(std.testing.allocator);
+    defer writer.deinit();
+
+    try ast.printErrors(case, null, &writer.writer);
+
+    try std.testing.expectEqualStrings(expected, writer.written());
+}
+
+test "invalid self-closing html tag" {
+    const case =
+        \\<!DOCTYPE html>
+        \\<html lang="en">
+        \\  <head>
+        \\    <meta charset="UTF-8">
+        \\    <title>hi</title>
+        \\  </head>
+        \\  <body>
+        \\    <div/>
+        \\    <p></p>
+        \\  </body>
+        \\</html>
+    ;
+    const expected =
+        \\<stdin>:7:5: html elements can't self-close
+        \\   <div/>
+        \\    ^^^
+        \\
+    ;
+
+    const ast = try Ast.init(std.testing.allocator, case, .html, false);
+    defer ast.deinit(std.testing.allocator);
+
+    var writer = Writer.Allocating.init(std.testing.allocator);
+    defer writer.deinit();
+
+    try ast.printErrors(case, null, &writer.writer);
+    try std.testing.expectEqualStrings(expected, writer.written());
+}
+
 test "respect empty lines" {
     const case =
         \\
